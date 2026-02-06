@@ -14,7 +14,7 @@ inputs:
     description: 'URL to health-check on end (optional)'
     required: false
   health_wait_seconds:
-    description: 'Optional: wait up to N seconds for health_check_url to return HTTP 200 (0 = no wait)'
+    description: 'Optional: retry up to N seconds until health_check_url returns an HTTP response (ok only on 200; 0 = no wait)'
     required: false
     default: '0'
   project_name:

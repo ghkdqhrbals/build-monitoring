@@ -2,6 +2,7 @@ import os
 import tempfile
 import time
 import unittest
+from unittest import mock
 
 import build_monitor
 
@@ -65,6 +66,38 @@ class TestBuildMonitor(unittest.TestCase):
                 os.unlink(out_path)
             except OSError:
                 pass
+
+    def test_health_wait_returns_immediately_on_response(self):
+        with mock.patch(
+            "build_monitor._health_check",
+            return_value=build_monitor.HealthResult(status="fail", http_status="503", latency_ms="12"),
+        ) as m:
+            res = build_monitor._health_check_wait_for_200(
+                "https://example.com",
+                timeout_seconds=1.0,
+                wait_seconds=60.0,
+                interval_seconds=1.0,
+            )
+            self.assertEqual(res.http_status, "503")
+            self.assertEqual(m.call_count, 1)
+
+    def test_health_wait_retries_on_no_response_then_stops_on_response(self):
+        seq = [
+            build_monitor.HealthResult(status="fail", http_status="000", latency_ms="0"),
+            build_monitor.HealthResult(status="ok", http_status="200", latency_ms="8"),
+        ]
+        with mock.patch("build_monitor._health_check", side_effect=seq) as m, mock.patch(
+            "build_monitor.time.sleep", return_value=None
+        ):
+            res = build_monitor._health_check_wait_for_200(
+                "https://example.com",
+                timeout_seconds=1.0,
+                wait_seconds=60.0,
+                interval_seconds=1.0,
+            )
+            self.assertEqual(res.http_status, "200")
+            self.assertEqual(res.status, "ok")
+            self.assertGreaterEqual(m.call_count, 2)
 
 
 if __name__ == "__main__":

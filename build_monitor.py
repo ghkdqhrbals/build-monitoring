@@ -76,11 +76,17 @@ def _health_check_wait_for_200(
     wait_seconds: float = 0.0,
     interval_seconds: float = 1.0,
 ) -> HealthResult:
-    """Health-check URL and optionally wait until it returns HTTP 200.
+    """Health-check URL and optionally retry for up to wait_seconds.
 
-    - If url is empty => skipped
-    - If wait_seconds <= 0 => single check
-    - Otherwise, keep checking until HTTP 200 or deadline reached
+        Semantics:
+        - If url is empty => skipped
+        - If wait_seconds <= 0 => single check
+        - Otherwise, retry once per interval (default 1s) until either:
+            - the target returns ANY HTTP response (status code available) -> return immediately
+                - status=ok only when HTTP 200
+            - the retry window expires -> return the last result (typically http_status=000)
+
+        Note: wait_seconds is a retry window, not a per-request timeout.
     """
 
     if not url:
@@ -99,21 +105,31 @@ def _health_check_wait_for_200(
     if wait_seconds <= 0:
         return _health_check(url, timeout_seconds=timeout_seconds)
 
-    deadline = time.monotonic() + max(0.0, wait_seconds)
+    start = time.monotonic()
+    deadline = start + max(0.0, wait_seconds)
     interval = max(0.1, interval_seconds)
 
     last_result = HealthResult(status="fail", http_status="000", latency_ms="0")
-    while True:
-        last_result = _health_check(url, timeout_seconds=timeout_seconds)
-        if last_result.http_status == "200":
-            return HealthResult(status="ok", http_status="200", latency_ms=last_result.latency_ms)
+    next_attempt_at = start
 
+    while True:
         now = time.monotonic()
         if now >= deadline:
             return last_result
 
-        remaining = deadline - now
-        time.sleep(min(interval, max(0.0, remaining)))
+        if now < next_attempt_at:
+            time.sleep(min(next_attempt_at - now, deadline - now))
+            continue
+
+        last_result = _health_check(url, timeout_seconds=timeout_seconds)
+
+        # If we got an HTTP status code (i.e., a response), return immediately.
+        if last_result.http_status != "000":
+            if last_result.http_status == "200":
+                return HealthResult(status="ok", http_status="200", latency_ms=last_result.latency_ms)
+            return last_result
+
+        next_attempt_at = next_attempt_at + interval
 
 
 def _post_webhook(webhook_url: str, payload: dict) -> None:
@@ -185,10 +201,8 @@ def cmd_end(
 
     effective_project = (_env("PROJECT_NAME") or project_name or "unknown").strip() or "unknown"
 
-    # While waiting for HTTP 200, retry every 1 second.
-    # Each attempt returns as soon as the HTTP response arrives; we do not artificially
-    # cut off slow responses just to keep cadence.
-    per_try_timeout = 10.0
+    # Retry probes every 1 second up to health_wait_seconds. Each probe times out after 1 second.
+    per_try_timeout = 1.0
     health = _health_check_wait_for_200(
         health_check_url,
         timeout_seconds=per_try_timeout,

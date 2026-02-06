@@ -13,7 +13,7 @@ Composite GitHub Action (implemented in Python) to:
 - `project_name` (optional, default: `unknown`)
 - `webhook_url` (optional): webhook endpoint to receive a JSON report
 - `health_check_url` (optional): URL to check on `end`
-- `health_wait_seconds` (optional, default: `0`): wait up to N seconds for `health_check_url` to return HTTP 200 (retries every 1 second)
+- `health_wait_seconds` (optional, default: `0`): retry for up to N seconds until `health_check_url` returns an HTTP response (retries every 1 second; `ok` only when HTTP 200)
 - `job_status` (optional, recommended): pass `${{ job.status }}` so the action can report success/failure
 
 ## Outputs (when `action=end`)
