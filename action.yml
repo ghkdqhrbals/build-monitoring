@@ -21,7 +21,7 @@ inputs:
     description: 'Action to perform: start | end'
     required: true
   job_status:
-    description: 'Job status string (recommended: pass ${{ job.status }})'
+    description: 'Job status string (recommended: pass the workflow job status, e.g. job.status)'
     required: false
 
 outputs:
