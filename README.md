@@ -1,11 +1,13 @@
 # Build Monitor (GitHub Action)
 
-## Example workflow
+This is a simple workflow for someone who need **build time calculation** and **readinessProbe status**.
 
-- `start`: 빌드/배포 시작 시간을 기록합니다.
-- `end`: (권장) `if: ${{ always() }}`로 실패해도 실행되게 하고, `build_time_ms` 등 결과를 outputs로 남깁니다.
-- `health_check_url`: 지정하면 헬스체크를 수행합니다.
-- `health_wait_seconds`: 0이면 1회만 체크, 0보다 크면 최대 N초 동안 1초 간격으로 재시도합니다.
+- `start`: saves the start time.
+- `end`: calculates duration and writes outputs (e.g. `build_time_ms`).
+- `health_check_url`: optional health check URL.
+- `health_wait_seconds`: `0` = check once, `>0` = retry every 1s for up to N seconds.
+
+## Example workflow
 
 ```yaml
 name: CI
