@@ -1,6 +1,6 @@
 # Build Monitor (GitHub Action)
 
-Composite GitHub Action to:
+Composite GitHub Action (implemented in Python) to:
 
 - record build start time
 - compute total build time on completion

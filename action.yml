@@ -50,9 +50,9 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        echo "BUILD_START_TIME=$(date +%s)" >> "$GITHUB_ENV"
-        echo "PROJECT_NAME=${{ inputs.project_name }}" >> "$GITHUB_ENV"
-        echo "Build monitoring started for ${{ inputs.project_name }}"
+        py=python3
+        command -v python3 >/dev/null 2>&1 || py=python
+        "$py" ./build_monitor.py start --project-name "${{ inputs.project_name }}"
 
     - name: End build monitoring and send report
       id: end
@@ -64,72 +64,11 @@ runs:
         INPUT_PROJECT_NAME: ${{ inputs.project_name }}
         INPUT_JOB_STATUS: ${{ inputs.job_status }}
       run: |
-        set -eo pipefail
-        trap 'echo "Build Monitor: failed at line $LINENO" >&2' ERR
-
-        has_curl=1
-        command -v curl >/dev/null 2>&1 || has_curl=0
-        has_awk=1
-        command -v awk >/dev/null 2>&1 || has_awk=0
-
-        end_time="$(date +%s)"
-
-        start_time="${BUILD_START_TIME:-}"
-        if [[ -z "$start_time" ]]; then
-          start_time="$end_time"
-        fi
-
-        build_time="$(( end_time - start_time ))"
-
-        status="${INPUT_JOB_STATUS:-unknown}"
-        if [[ -z "$status" ]]; then
-          status="unknown"
-        fi
-
-        health_status="skipped"
-        health_http_status="skipped"
-        health_latency_ms="skipped"
-        if [[ -n "${HEALTH_CHECK_URL:-}" ]] && [[ "$has_curl" == "1" ]]; then
-          # Returns: "<http_code> <time_total>" (time_total in seconds)
-          code_time="$(curl -o /dev/null -sS -w '%{http_code} %{time_total}' "$HEALTH_CHECK_URL" || echo '000 0')"
-          code="000"
-          time_total="0"
-          IFS=' ' read -r code time_total <<< "$code_time" || true
-          health_http_status="$code"
-          # convert seconds->ms (best-effort; avoids requiring jq/python)
-          if [[ "$has_awk" == "1" ]]; then
-            health_latency_ms="$(awk -v t="$time_total" 'BEGIN { printf "%d", (t * 1000) }')"
-          else
-            health_latency_ms="unknown"
-          fi
-          if [[ "$code" =~ ^[23][0-9]{2}$ ]]; then
-            health_status="ok"
-          else
-            health_status="fail"
-          fi
-        elif [[ -n "${HEALTH_CHECK_URL:-}" ]] && [[ "$has_curl" != "1" ]]; then
-          health_status="skipped"
-          health_http_status="skipped"
-          health_latency_ms="skipped"
-        fi
-
-        timestamp="$(date -Iseconds)"
-
-        project_name="${PROJECT_NAME:-${INPUT_PROJECT_NAME:-unknown}}"
-
-        payload=$(cat <<EOF
-        {"project":"$project_name","build_time":$build_time,"status":"$status","health_status":"$health_status","health_http_status":"$health_http_status","health_latency_ms":"$health_latency_ms","timestamp":"$timestamp","repository":"$GITHUB_REPOSITORY","workflow":"$GITHUB_WORKFLOW","run_id":"$GITHUB_RUN_ID","run_number":"$GITHUB_RUN_NUMBER","job":"$GITHUB_JOB","sha":"$GITHUB_SHA"}
-        EOF
-        )
-
-        if [[ -n "${WEBHOOK_URL:-}" ]] && [[ "$has_curl" == "1" ]]; then
-          # Do not fail the job if webhook delivery fails
-          curl -sS -X POST -H "Content-Type: application/json" -d "$payload" "$WEBHOOK_URL" || true
-        fi
-
-        echo "Build completed in $build_time seconds with status: $status"
-        echo "build_time=$build_time" >> "$GITHUB_OUTPUT"
-        echo "build_status=$status" >> "$GITHUB_OUTPUT"
-        echo "health_status=$health_status" >> "$GITHUB_OUTPUT"
-        echo "health_http_status=$health_http_status" >> "$GITHUB_OUTPUT"
-        echo "health_latency_ms=$health_latency_ms" >> "$GITHUB_OUTPUT"
+        set -euo pipefail
+        py=python3
+        command -v python3 >/dev/null 2>&1 || py=python
+        "$py" ./build_monitor.py end \
+          --project-name "${INPUT_PROJECT_NAME:-unknown}" \
+          --job-status "${INPUT_JOB_STATUS:-unknown}" \
+          --webhook-url "${WEBHOOK_URL:-}" \
+          --health-check-url "${HEALTH_CHECK_URL:-}"
