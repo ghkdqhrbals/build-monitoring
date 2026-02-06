@@ -53,7 +53,7 @@ jobs:
           sleep 1
 
       - name: End monitoring 2
-        id: monitor_end
+        id: monitor_end_2
         if: ${{ always() }}
         uses: ./.
         with:
@@ -64,8 +64,8 @@ jobs:
       - name: Print outputs
         if: ${{ always() }}
         run: |
-          echo "build_time=${{ steps.monitor_end.outputs.build_time }}"
-          echo "build_status=${{ steps.monitor_end.outputs.build_status }}"
-          echo "health_status=${{ steps.monitor_end.outputs.health_status }}"
-          echo "health_http_status=${{ steps.monitor_end.outputs.health_http_status }}"
-          echo "health_latency_ms=${{ steps.monitor_end.outputs.health_latency_ms }}"
+          echo "build_time=${{ steps.monitor_end_2.outputs.build_time }}"
+          echo "build_status=${{ steps.monitor_end_2.outputs.build_status }}"
+          echo "health_status=${{ steps.monitor_end_2.outputs.health_status }}"
+          echo "health_http_status=${{ steps.monitor_end_2.outputs.health_http_status }}"
+          echo "health_latency_ms=${{ steps.monitor_end_2.outputs.health_latency_ms }}"
