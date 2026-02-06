@@ -40,3 +40,32 @@ jobs:
           echo "health_status=${{ steps.monitor_end.outputs.health_status }}"
           echo "health_http_status=${{ steps.monitor_end.outputs.health_http_status }}"
           echo "health_latency_ms=${{ steps.monitor_end.outputs.health_latency_ms }}"
+
+      - name: Start monitoring 2
+        uses: ./.
+        with:
+          action: start
+          project_name: new-project
+
+      - name: Simulate work
+        run: |
+          echo "working..."
+          sleep 1
+
+      - name: End monitoring 2
+        id: monitor_end
+        if: ${{ always() }}
+        uses: ./.
+        with:
+          action: end
+          project_name: new-project
+          job_status: ${{ job.status }}
+
+      - name: Print outputs
+        if: ${{ always() }}
+        run: |
+          echo "build_time=${{ steps.monitor_end.outputs.build_time }}"
+          echo "build_status=${{ steps.monitor_end.outputs.build_status }}"
+          echo "health_status=${{ steps.monitor_end.outputs.health_status }}"
+          echo "health_http_status=${{ steps.monitor_end.outputs.health_http_status }}"
+          echo "health_latency_ms=${{ steps.monitor_end.outputs.health_latency_ms }}"
