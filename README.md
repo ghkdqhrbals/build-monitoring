@@ -4,7 +4,7 @@ Composite GitHub Action (implemented in Python) to:
 
 - record build start time
 - compute total build time on completion
-- optionally health-check a URL
+- optionally health-check a URL (and optionally wait until it returns HTTP 200)
 - optionally POST a JSON report to a webhook
 
 ## Inputs
@@ -13,17 +13,17 @@ Composite GitHub Action (implemented in Python) to:
 - `project_name` (optional, default: `unknown`)
 - `webhook_url` (optional): webhook endpoint to receive a JSON report
 - `health_check_url` (optional): URL to check on `end`
-- `health_wait_seconds` (optional, default: `0`): wait up to N seconds for `health_check_url` to return HTTP 200
+- `health_wait_seconds` (optional, default: `0`): wait up to N seconds for `health_check_url` to return HTTP 200 (retries every 1 second)
 - `job_status` (optional, recommended): pass `${{ job.status }}` so the action can report success/failure
 
 ## Outputs (when `action=end`)
 
-- `build_time_ms`: milliseconds
-- `build_time`: seconds
+- `build_time_ms`: total duration in milliseconds
+- `build_time`: total duration in seconds (compat)
 - `build_status`: `success|failure|cancelled|unknown`
 - `health_status`: `ok|fail|skipped`
-- `health_http_status`: HTTP status code (string)
-- `health_latency_ms`: latency in ms (string)
+- `health_http_status`: HTTP status code, or `skipped`
+- `health_latency_ms`: latency in ms, or `skipped|unknown`
 
 ## Example workflow
 
@@ -39,7 +39,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Start monitoring
-        uses: ./. 
+        uses: ./.
         with:
           action: start
           project_name: my-service
@@ -52,20 +52,24 @@ jobs:
       - name: End monitoring (always)
         id: monitor_end
         if: ${{ always() }}
-        uses: ./. 
+        uses: ./.
         with:
           action: end
           project_name: my-service
           job_status: ${{ job.status }}
           # webhook_url: ${{ secrets.BUILD_MONITOR_WEBHOOK }}
           # health_check_url: https://example.com/health
+          # health_wait_seconds: 30
 
       - name: Show outputs
         if: ${{ always() }}
         run: |
+          echo "build_time_ms=${{ steps.monitor_end.outputs.build_time_ms }}"
           echo "build_time=${{ steps.monitor_end.outputs.build_time }}"
           echo "build_status=${{ steps.monitor_end.outputs.build_status }}"
           echo "health_status=${{ steps.monitor_end.outputs.health_status }}"
+          echo "health_http_status=${{ steps.monitor_end.outputs.health_http_status }}"
+          echo "health_latency_ms=${{ steps.monitor_end.outputs.health_latency_ms }}"
 ```
 
 Note: when using `end`, call the step with `if: ${{ always() }}` so it runs even on failures.
