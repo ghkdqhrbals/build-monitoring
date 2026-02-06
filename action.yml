@@ -64,7 +64,13 @@ runs:
         INPUT_PROJECT_NAME: ${{ inputs.project_name }}
         INPUT_JOB_STATUS: ${{ inputs.job_status }}
       run: |
-        set -euo pipefail
+        set -eo pipefail
+        trap 'echo "Build Monitor: failed at line $LINENO" >&2' ERR
+
+        has_curl=1
+        command -v curl >/dev/null 2>&1 || has_curl=0
+        has_awk=1
+        command -v awk >/dev/null 2>&1 || has_awk=0
 
         end_time="$(date +%s)"
 
@@ -83,17 +89,23 @@ runs:
         health_status="skipped"
         health_http_status=""
         health_latency_ms=""
-        if [[ -n "${HEALTH_CHECK_URL:-}" ]]; then
+        if [[ -n "${HEALTH_CHECK_URL:-}" ]] && [[ "$has_curl" == "1" ]]; then
           # Returns: "<http_code> <time_total>" (time_total in seconds)
           read -r code time_total < <(curl -o /dev/null -sS -w '%{http_code} %{time_total}' "$HEALTH_CHECK_URL" || echo "000 0")
           health_http_status="$code"
           # convert seconds->ms (best-effort; avoids requiring jq/python)
-          health_latency_ms="$(awk -v t="$time_total" 'BEGIN { printf "%d", (t * 1000) }')"
+          if [[ "$has_awk" == "1" ]]; then
+            health_latency_ms="$(awk -v t="$time_total" 'BEGIN { printf "%d", (t * 1000) }')"
+          else
+            health_latency_ms=""
+          fi
           if [[ "$code" =~ ^[23][0-9]{2}$ ]]; then
             health_status="ok"
           else
             health_status="fail"
           fi
+        elif [[ -n "${HEALTH_CHECK_URL:-}" ]] && [[ "$has_curl" != "1" ]]; then
+          health_status="skipped"
         fi
 
         timestamp="$(date -Iseconds)"
@@ -105,7 +117,7 @@ runs:
         EOF
         )
 
-        if [[ -n "${WEBHOOK_URL:-}" ]]; then
+        if [[ -n "${WEBHOOK_URL:-}" ]] && [[ "$has_curl" == "1" ]]; then
           # Do not fail the job if webhook delivery fails
           curl -sS -X POST -H "Content-Type: application/json" -d "$payload" "$WEBHOOK_URL" || true
         fi
