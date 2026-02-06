@@ -91,7 +91,10 @@ runs:
         health_latency_ms=""
         if [[ -n "${HEALTH_CHECK_URL:-}" ]] && [[ "$has_curl" == "1" ]]; then
           # Returns: "<http_code> <time_total>" (time_total in seconds)
-          read -r code time_total < <(curl -o /dev/null -sS -w '%{http_code} %{time_total}' "$HEALTH_CHECK_URL" || echo "000 0")
+          code_time="$(curl -o /dev/null -sS -w '%{http_code} %{time_total}' "$HEALTH_CHECK_URL" || echo '000 0')"
+          code="000"
+          time_total="0"
+          IFS=' ' read -r code time_total <<< "$code_time" || true
           health_http_status="$code"
           # convert seconds->ms (best-effort; avoids requiring jq/python)
           if [[ "$has_awk" == "1" ]]; then
