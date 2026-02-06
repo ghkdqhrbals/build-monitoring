@@ -20,7 +20,7 @@ jobs:
       - name: Simulate work
         run: |
           echo "working..."
-          sleep 1
+          sleep 10
 
       - name: End monitoring
         id: monitor_end
@@ -50,7 +50,7 @@ jobs:
       - name: Simulate work
         run: |
           echo "working..."
-          sleep 1
+          sleep 5
 
       - name: End monitoring 2
         id: monitor_end_2
