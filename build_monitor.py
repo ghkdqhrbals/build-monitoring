@@ -180,7 +180,6 @@ def cmd_end(
         start_ms = start_s * 1000
 
     build_time_ms = max(0, end_ms - start_ms)
-    build_time = int(build_time_ms / 1000)
 
     status = (job_status or "unknown").strip() or "unknown"
 
@@ -197,7 +196,6 @@ def cmd_end(
 
     payload = {
         "project": effective_project,
-        "build_time": build_time,
         "build_time_ms": build_time_ms,
         "status": status,
         "health_status": health.status,
@@ -214,9 +212,8 @@ def cmd_end(
 
     _post_webhook(webhook_url, payload)
 
-    print(f"Build completed in {build_time} seconds with status: {status}")
+    print(f"Build completed in {build_time_ms} milliseconds with status: {status}")
 
-    _append_output_file(github_output, "build_time", str(build_time))
     _append_output_file(github_output, "build_time_ms", str(build_time_ms))
     _append_output_file(github_output, "build_status", status)
     _append_output_file(github_output, "health_status", health.status)
