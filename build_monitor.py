@@ -57,7 +57,7 @@ def _health_check(url: str, timeout_seconds: float = 10.0) -> HealthResult:
 
     elapsed_ms = int((time.monotonic() - start) * 1000)
 
-    if code and 200 <= code < 400:
+    if code == 200:
         status = "ok"
     else:
         status = "fail"
@@ -67,6 +67,53 @@ def _health_check(url: str, timeout_seconds: float = 10.0) -> HealthResult:
         status = "fail"
 
     return HealthResult(status=status, http_status=http_status, latency_ms=str(elapsed_ms))
+
+
+def _health_check_wait_for_200(
+    url: str,
+    *,
+    timeout_seconds: float = 10.0,
+    wait_seconds: float = 0.0,
+    interval_seconds: float = 1.0,
+) -> HealthResult:
+    """Health-check URL and optionally wait until it returns HTTP 200.
+
+    - If url is empty => skipped
+    - If wait_seconds <= 0 => single check
+    - Otherwise, keep checking until HTTP 200 or deadline reached
+    """
+
+    if not url:
+        return HealthResult(status="skipped", http_status="skipped", latency_ms="skipped")
+
+    try:
+        wait_seconds = float(wait_seconds)
+    except Exception:
+        wait_seconds = 0.0
+
+    try:
+        interval_seconds = float(interval_seconds)
+    except Exception:
+        interval_seconds = 1.0
+
+    if wait_seconds <= 0:
+        return _health_check(url, timeout_seconds=timeout_seconds)
+
+    deadline = time.monotonic() + max(0.0, wait_seconds)
+    interval = max(0.1, interval_seconds)
+
+    last_result = HealthResult(status="fail", http_status="000", latency_ms="0")
+    while True:
+        last_result = _health_check(url, timeout_seconds=timeout_seconds)
+        if last_result.http_status == "200":
+            return HealthResult(status="ok", http_status="200", latency_ms=last_result.latency_ms)
+
+        now = time.monotonic()
+        if now >= deadline:
+            return last_result
+
+        remaining = deadline - now
+        time.sleep(min(interval, max(0.0, remaining)))
 
 
 def _post_webhook(webhook_url: str, payload: dict) -> None:
@@ -109,6 +156,7 @@ def cmd_end(
     job_status: str,
     webhook_url: str,
     health_check_url: str,
+    health_wait_seconds: float,
 ) -> int:
     github_output = _env("GITHUB_OUTPUT")
     if not github_output:
@@ -138,7 +186,12 @@ def cmd_end(
 
     effective_project = (_env("PROJECT_NAME") or project_name or "unknown").strip() or "unknown"
 
-    health = _health_check(health_check_url)
+    # Retry health check every 1 second while waiting for HTTP 200.
+    health = _health_check_wait_for_200(
+        health_check_url,
+        wait_seconds=health_wait_seconds,
+        interval_seconds=1.0,
+    )
 
     timestamp = time.strftime("%Y-%m-%dT%H:%M:%S%z")
 
@@ -185,6 +238,12 @@ def main(argv: list[str]) -> int:
     p_end.add_argument("--job-status", default="unknown")
     p_end.add_argument("--webhook-url", default="")
     p_end.add_argument("--health-check-url", default="")
+    p_end.add_argument(
+        "--health-wait-seconds",
+        type=float,
+        default=0.0,
+        help="Wait up to N seconds for health-check URL to return HTTP 200 (0 = no wait)",
+    )
 
     args = parser.parse_args(argv)
 
@@ -197,6 +256,7 @@ def main(argv: list[str]) -> int:
             job_status=args.job_status,
             webhook_url=args.webhook_url,
             health_check_url=args.health_check_url,
+            health_wait_seconds=args.health_wait_seconds,
         )
 
     return 2

@@ -13,6 +13,10 @@ inputs:
   health_check_url:
     description: 'URL to health-check on end (optional)'
     required: false
+  health_wait_seconds:
+    description: 'Optional: wait up to N seconds for health_check_url to return HTTP 200 (0 = no wait)'
+    required: false
+    default: '0'
   project_name:
     description: 'Project name for reporting'
     required: false
@@ -38,10 +42,10 @@ outputs:
     description: 'Health check status (ok|fail|skipped) (only set when action=end)'
     value: ${{ steps.end.outputs.health_status }}
   health_http_status:
-    description: 'Health check HTTP status code (only set when health_check_url is provided)'
+    description: 'Health check HTTP status code (or skipped)'
     value: ${{ steps.end.outputs.health_http_status }}
   health_latency_ms:
-    description: 'Health check latency in ms (only set when health_check_url is provided)'
+    description: 'Health check latency in ms (or skipped/unknown)'
     value: ${{ steps.end.outputs.health_latency_ms }}
 
 runs:
@@ -64,6 +68,7 @@ runs:
       env:
         WEBHOOK_URL: ${{ inputs.webhook_url }}
         HEALTH_CHECK_URL: ${{ inputs.health_check_url }}
+        HEALTH_WAIT_SECONDS: ${{ inputs.health_wait_seconds }}
         INPUT_PROJECT_NAME: ${{ inputs.project_name }}
         INPUT_JOB_STATUS: ${{ inputs.job_status }}
       run: |
@@ -74,4 +79,5 @@ runs:
           --project-name "${INPUT_PROJECT_NAME:-unknown}" \
           --job-status "${INPUT_JOB_STATUS:-unknown}" \
           --webhook-url "${WEBHOOK_URL:-}" \
-          --health-check-url "${HEALTH_CHECK_URL:-}"
+          --health-check-url "${HEALTH_CHECK_URL:-}" \
+          --health-wait-seconds "${HEALTH_WAIT_SECONDS:-0}"

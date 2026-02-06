@@ -31,6 +31,7 @@ jobs:
           project_name: build-monitoring
           job_status: ${{ job.status }}
           health_check_url: https://example.com
+          health_wait_seconds: 5
 
       - name: Print outputs
         if: ${{ always() }}
