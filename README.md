@@ -1,31 +1,11 @@
 # Build Monitor (GitHub Action)
 
-Composite GitHub Action (implemented in Python) to:
-
-- record build start time
-- compute total build time on completion
-- optionally health-check a URL (and optionally wait until it returns HTTP 200)
-- optionally POST a JSON report to a webhook
-
-## Inputs
-
-- `action` (required): `start` or `end`
-- `project_name` (optional, default: `unknown`)
-- `webhook_url` (optional): webhook endpoint to receive a JSON report
-- `health_check_url` (optional): URL to check on `end`
-- `health_wait_seconds` (optional, default: `0`): retry for up to N seconds until `health_check_url` returns an HTTP response (retries every 1 second; `ok` only when HTTP 200)
-- `job_status` (optional, recommended): pass `${{ job.status }}` so the action can report success/failure
-
-## Outputs (when `action=end`)
-
-- `build_time_ms`: total duration in milliseconds
-- `build_time`: total duration in seconds (compat)
-- `build_status`: `success|failure|cancelled|unknown`
-- `health_status`: `ok|fail|skipped`
-- `health_http_status`: HTTP status code, or `skipped`
-- `health_latency_ms`: latency in ms, or `skipped|unknown`
-
 ## Example workflow
+
+- `start`: 빌드/배포 시작 시간을 기록합니다.
+- `end`: (권장) `if: ${{ always() }}`로 실패해도 실행되게 하고, `build_time_ms` 등 결과를 outputs로 남깁니다.
+- `health_check_url`: 지정하면 헬스체크를 수행합니다.
+- `health_wait_seconds`: 0이면 1회만 체크, 0보다 크면 최대 N초 동안 1초 간격으로 재시도합니다.
 
 ```yaml
 name: CI
@@ -38,72 +18,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Start monitoring
-        uses: ./.
+      - name: server deploy monitoring start
+        uses: ghkdqhrbals/build-monitoring@v1.0.3
         with:
           action: start
-          project_name: my-service
+          project_name: guestbook
 
-      - name: Build
-        run: |
-          echo "do build..."
-          sleep 2
+      - name: Building And Deploy Step
+        run: ...
 
-      - name: End monitoring (always)
-        id: monitor_end
+      - name: server deploy monitoring end
+        uses: ghkdqhrbals/build-monitoring@v1.0.3
+        id: deploy-stats
         if: ${{ always() }}
-        uses: ./.
         with:
           action: end
-          project_name: my-service
+          project_name: guestbook
           job_status: ${{ job.status }}
-          # webhook_url: ${{ secrets.BUILD_MONITOR_WEBHOOK }}
-          # health_check_url: https://example.com/health
-          # health_wait_seconds: 30
+          health_check_url: https://lowfidev.cloud/health
+          health_wait_seconds: 60
 
       - name: Show outputs
         if: ${{ always() }}
         run: |
-          echo "build_time_ms=${{ steps.monitor_end.outputs.build_time_ms }}"
-          echo "build_time=${{ steps.monitor_end.outputs.build_time }}"
-          echo "build_status=${{ steps.monitor_end.outputs.build_status }}"
-          echo "health_status=${{ steps.monitor_end.outputs.health_status }}"
-          echo "health_http_status=${{ steps.monitor_end.outputs.health_http_status }}"
-          echo "health_latency_ms=${{ steps.monitor_end.outputs.health_latency_ms }}"
+          echo "build_time_ms=${{ steps.deploy-stats.outputs.build_time_ms }}"
+          echo "build_time=${{ steps.deploy-stats.outputs.build_time }}"
+          echo "build_status=${{ steps.deploy-stats.outputs.build_status }}"
+          echo "health_status=${{ steps.deploy-stats.outputs.health_status }}"
+          echo "health_http_status=${{ steps.deploy-stats.outputs.health_http_status }}"
+          echo "health_latency_ms=${{ steps.deploy-stats.outputs.health_latency_ms }}"
 ```
-
-Note: when using `end`, call the step with `if: ${{ always() }}` so it runs even on failures.
-
-## Using from another repo
-
-```yaml
-- uses: ghkdqhrbals/build-monitoring@v1
-  with:
-    action: start
-    project_name: my-service
-```
-
-## Marketplace publish checklist
-
-1. Push this repo to GitHub as a **public** repository.
-2. Ensure the action metadata file is at repo root: `action.yml`.
-3. Add a release tag, e.g.:
-   - `v1.0.0` (immutable)
-   - and optionally a moving major tag `v1` (recommended for users)
-4. Create a GitHub Release for the tag.
-5. In the GitHub UI: **Settings → Actions → General** (optional hardening).
-6. Marketplace listing typically appears once the repo is public and contains a valid `action.yml` + README.
-
-### Recommended tagging
-
-- Tag a specific version: `v1.0.0`
-- Also create/update a major tag: `v1` pointing to the latest compatible `v1.x.y`
-
-## CI/CD
-
-This repo includes workflows under `.github/workflows/`:
-
-- `Smoke Test`: exercises the action end-to-end
-- `Lint`: runs `actionlint` for workflow YAML
-- `Python Tests`: runs unit tests for `build_monitor.py`
-- `Release`: creates GitHub Releases on `v*` tags and updates the moving `v1` tag on `v1.x.y`
