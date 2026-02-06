@@ -185,9 +185,13 @@ def cmd_end(
 
     effective_project = (_env("PROJECT_NAME") or project_name or "unknown").strip() or "unknown"
 
-    # Retry health check every 1 second while waiting for HTTP 200.
+    # While waiting for HTTP 200, retry every 1 second.
+    # Each attempt returns as soon as the HTTP response arrives; we do not artificially
+    # cut off slow responses just to keep cadence.
+    per_try_timeout = 10.0
     health = _health_check_wait_for_200(
         health_check_url,
+        timeout_seconds=per_try_timeout,
         wait_seconds=health_wait_seconds,
         interval_seconds=1.0,
     )
