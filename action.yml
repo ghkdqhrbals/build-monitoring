@@ -87,8 +87,8 @@ runs:
         fi
 
         health_status="skipped"
-        health_http_status=""
-        health_latency_ms=""
+        health_http_status="skipped"
+        health_latency_ms="skipped"
         if [[ -n "${HEALTH_CHECK_URL:-}" ]] && [[ "$has_curl" == "1" ]]; then
           # Returns: "<http_code> <time_total>" (time_total in seconds)
           code_time="$(curl -o /dev/null -sS -w '%{http_code} %{time_total}' "$HEALTH_CHECK_URL" || echo '000 0')"
@@ -100,7 +100,7 @@ runs:
           if [[ "$has_awk" == "1" ]]; then
             health_latency_ms="$(awk -v t="$time_total" 'BEGIN { printf "%d", (t * 1000) }')"
           else
-            health_latency_ms=""
+            health_latency_ms="unknown"
           fi
           if [[ "$code" =~ ^[23][0-9]{2}$ ]]; then
             health_status="ok"
@@ -109,6 +109,8 @@ runs:
           fi
         elif [[ -n "${HEALTH_CHECK_URL:-}" ]] && [[ "$has_curl" != "1" ]]; then
           health_status="skipped"
+          health_http_status="skipped"
+          health_latency_ms="skipped"
         fi
 
         timestamp="$(date -Iseconds)"
