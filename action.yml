@@ -56,7 +56,7 @@ runs:
         set -euo pipefail
         py=python3
         command -v python3 >/dev/null 2>&1 || py=python
-        "$py" ./build_monitor.py start --project-name "${{ inputs.project_name }}"
+        "$py" "${GITHUB_ACTION_PATH}/build_monitor.py" start --project-name "${{ inputs.project_name }}"
 
     - name: End build monitoring and send report
       id: end
@@ -72,7 +72,7 @@ runs:
         set -euo pipefail
         py=python3
         command -v python3 >/dev/null 2>&1 || py=python
-        "$py" ./build_monitor.py end \
+        "$py" "${GITHUB_ACTION_PATH}/build_monitor.py" end \
           --project-name "${INPUT_PROJECT_NAME:-unknown}" \
           --job-status "${INPUT_JOB_STATUS:-unknown}" \
           --webhook-url "${WEBHOOK_URL:-}" \
