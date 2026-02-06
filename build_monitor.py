@@ -95,7 +95,10 @@ def cmd_start(project_name: str) -> int:
         print("Build Monitor: GITHUB_ENV not set; are you running outside GitHub Actions?", file=sys.stderr)
         return 1
 
-    _append_env_file(github_env, "BUILD_START_TIME", str(_now_epoch_seconds()))
+    start_s = _now_epoch_seconds()
+    start_ms = int(time.time() * 1000)
+    _append_env_file(github_env, "BUILD_START_TIME", str(start_s))
+    _append_env_file(github_env, "BUILD_START_TIME_MS", str(start_ms))
     _append_env_file(github_env, "PROJECT_NAME", project_name or "unknown")
     print(f"Build monitoring started for {project_name or 'unknown'}")
     return 0
@@ -112,14 +115,24 @@ def cmd_end(
         print("Build Monitor: GITHUB_OUTPUT not set; are you running outside GitHub Actions?", file=sys.stderr)
         return 1
 
-    end_time = _now_epoch_seconds()
-    start_time_str = _env("BUILD_START_TIME", "")
-    try:
-        start_time = int(start_time_str) if start_time_str else end_time
-    except ValueError:
-        start_time = end_time
+    end_ms = int(time.time() * 1000)
+    start_ms_str = _env("BUILD_START_TIME_MS", "")
+    if start_ms_str.strip():
+        try:
+            start_ms = int(start_ms_str)
+        except ValueError:
+            start_ms = end_ms
+    else:
+        # Back-compat: older start step stored seconds
+        start_s_str = _env("BUILD_START_TIME", "")
+        try:
+            start_s = int(start_s_str) if start_s_str else int(end_ms / 1000)
+        except ValueError:
+            start_s = int(end_ms / 1000)
+        start_ms = start_s * 1000
 
-    build_time = max(0, end_time - start_time)
+    build_time_ms = max(0, end_ms - start_ms)
+    build_time = int(build_time_ms / 1000)
 
     status = (job_status or "unknown").strip() or "unknown"
 
@@ -132,6 +145,7 @@ def cmd_end(
     payload = {
         "project": effective_project,
         "build_time": build_time,
+        "build_time_ms": build_time_ms,
         "status": status,
         "health_status": health.status,
         "health_http_status": health.http_status,
@@ -150,6 +164,7 @@ def cmd_end(
     print(f"Build completed in {build_time} seconds with status: {status}")
 
     _append_output_file(github_output, "build_time", str(build_time))
+    _append_output_file(github_output, "build_time_ms", str(build_time_ms))
     _append_output_file(github_output, "build_status", status)
     _append_output_file(github_output, "health_status", health.status)
     _append_output_file(github_output, "health_http_status", health.http_status)

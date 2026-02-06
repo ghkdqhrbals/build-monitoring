@@ -17,6 +17,7 @@ Composite GitHub Action (implemented in Python) to:
 
 ## Outputs (when `action=end`)
 
+- `build_time_ms`: milliseconds
 - `build_time`: seconds
 - `build_status`: `success|failure|cancelled|unknown`
 - `health_status`: `ok|fail|skipped`

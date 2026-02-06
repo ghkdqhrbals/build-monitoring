@@ -28,6 +28,9 @@ outputs:
   build_time:
     description: 'Build time in seconds (only set when action=end)'
     value: ${{ steps.end.outputs.build_time }}
+  build_time_ms:
+    description: 'Build time in milliseconds (only set when action=end)'
+    value: ${{ steps.end.outputs.build_time_ms }}
   build_status:
     description: 'Build status (success|failure|cancelled|unknown) (only set when action=end)'
     value: ${{ steps.end.outputs.build_status }}

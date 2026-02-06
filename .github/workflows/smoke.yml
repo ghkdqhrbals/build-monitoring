@@ -35,6 +35,7 @@ jobs:
       - name: Print outputs
         if: ${{ always() }}
         run: |
+          echo "build_time_ms=${{ steps.monitor_end.outputs.build_time_ms }} (ms)"
           echo "build_time=${{ steps.monitor_end.outputs.build_time }} (seconds)"
           echo "build_status=${{ steps.monitor_end.outputs.build_status }}"
           echo "health_status=${{ steps.monitor_end.outputs.health_status }}"
@@ -64,6 +65,7 @@ jobs:
       - name: Print outputs
         if: ${{ always() }}
         run: |
+          echo "build_time_ms=${{ steps.monitor_end_2.outputs.build_time_ms }} (ms)"
           echo "build_time=${{ steps.monitor_end_2.outputs.build_time }} (seconds)"
           echo "build_status=${{ steps.monitor_end_2.outputs.build_status }}"
           echo "health_status=${{ steps.monitor_end_2.outputs.health_status }}"
