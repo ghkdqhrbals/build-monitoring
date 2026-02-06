@@ -1,0 +1,32 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+
+  move-major-tag:
+    # Update moving major tag (e.g., v1) when pushing v1.x.y tags.
+    if: startsWith(github.ref_name, 'v1.')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Move v1 tag to this release
+        run: |
+          git tag -f v1 "$GITHUB_SHA"
+          git push -f origin v1

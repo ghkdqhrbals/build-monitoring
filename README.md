@@ -98,3 +98,12 @@ Note: when using `end`, call the step with `if: ${{ always() }}` so it runs even
 
 - Tag a specific version: `v1.0.0`
 - Also create/update a major tag: `v1` pointing to the latest compatible `v1.x.y`
+
+## CI/CD
+
+This repo includes workflows under `.github/workflows/`:
+
+- `Smoke Test`: exercises the action end-to-end
+- `Lint`: runs `actionlint` for workflow YAML
+- `Python Tests`: runs unit tests for `build_monitor.py`
+- `Release`: creates GitHub Releases on `v*` tags and updates the moving `v1` tag on `v1.x.y`
