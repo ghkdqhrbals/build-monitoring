@@ -1,0 +1,38 @@
+name: Smoke Test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start monitoring
+        uses: ./. 
+        with:
+          action: start
+          project_name: build-monitoring
+
+      - name: Simulate work
+        run: |
+          echo "working..."
+          sleep 1
+
+      - name: End monitoring
+        id: monitor_end
+        if: ${{ always() }}
+        uses: ./. 
+        with:
+          action: end
+          project_name: build-monitoring
+          job_status: ${{ job.status }}
+
+      - name: Print outputs
+        if: ${{ always() }}
+        run: |
+          echo "build_time=${{ steps.monitor_end.outputs.build_time }}"
+          echo "build_status=${{ steps.monitor_end.outputs.build_status }}"
+          echo "health_status=${{ steps.monitor_end.outputs.health_status }}"
