@@ -1,4 +1,4 @@
-name: 'Build Monitor'
+name: 'server deploy monitoring'
 description: 'Monitor build time, optionally health-check a URL, and report success/failure via webhook'
 author: 'ghkdqhrbals'
 
