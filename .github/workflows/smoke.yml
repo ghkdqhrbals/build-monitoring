@@ -3,6 +3,7 @@ name: Smoke Test
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   smoke:
@@ -11,7 +12,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Start monitoring
-        uses: ./. 
+        uses: ./.
         with:
           action: start
           project_name: build-monitoring
@@ -24,11 +25,12 @@ jobs:
       - name: End monitoring
         id: monitor_end
         if: ${{ always() }}
-        uses: ./. 
+        uses: ./.
         with:
           action: end
           project_name: build-monitoring
           job_status: ${{ job.status }}
+          health_check_url: https://example.com
 
       - name: Print outputs
         if: ${{ always() }}
@@ -36,3 +38,5 @@ jobs:
           echo "build_time=${{ steps.monitor_end.outputs.build_time }}"
           echo "build_status=${{ steps.monitor_end.outputs.build_status }}"
           echo "health_status=${{ steps.monitor_end.outputs.health_status }}"
+          echo "health_http_status=${{ steps.monitor_end.outputs.health_http_status }}"
+          echo "health_latency_ms=${{ steps.monitor_end.outputs.health_latency_ms }}"
